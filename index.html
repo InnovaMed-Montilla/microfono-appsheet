@@ -98,11 +98,12 @@
       const tableName = 'InformeIA'; // Nombre exacto de tu tabla en AppSheet (ej. Chat, Consultas, etc.)
 
       const payload = {
-        "Action": "Add",
+        "Action": "edit",
         "Properties": { "Locale": "es-ES" },
         "Rows": [
           {
             "Transcripción": text,   // Columna exacta configurada para el texto
+            "IDPaciente": pacienteId, // Pasa también el ID del paciente si usas "Add"
             "InformeIA_ID": rowId    // ID recibido por URL para vincularlo (si aplica)
           }
         ]
