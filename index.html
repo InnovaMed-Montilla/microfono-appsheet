@@ -93,17 +93,17 @@
       statusDiv.innerText = "Estado: Enviando a AppSheet...";
 
       // CONFIGURA TUS DATOS AQUÍ:
-      const appId = 'TU_APP_ID_AQUÍ';
-      const accessKey = 'TU_APPLICATION_ACCESS_KEY_AQUÍ';
-      const tableName = 'Chat'; // Nombre exacto de tu tabla en AppSheet
+      const appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
+      const accessKey = 'V2-QSmwH-L1WNE-URrC1-SEyRP-zYkPT-KKN5D-e7P8h-YWsKv';
+      const tableName = 'Luisa Montilla InnovaMed'; // Nombre exacto de tu tabla en AppSheet (ej. Chat, Consultas, etc.)
 
       const payload = {
         "Action": "Add",
         "Properties": { "Locale": "es-ES" },
         "Rows": [
           {
-            "Mensaje": text,         // Nombre del campo de texto en tu tabla
-            "ID_Consulta": rowId     // Opcional: Para vincular al registro/chat activo
+            "Transcripción": text,   // Columna exacta configurada para el texto
+            "InformeIA_ID": rowId    // ID recibido por URL para vincularlo (si aplica)
           }
         ]
       };
@@ -118,18 +118,21 @@
           body: JSON.stringify(payload)
         });
 
+        const result = await response.json();
+
         if (response.ok) {
-          statusDiv.innerText = "¡Mensaje guardado con éxito!";
-          statusDiv.style.color = "#007bff";
+          statusDiv.innerText = "¡Transcripción guardada con éxito!";
+          statusDiv.style.color = "#28a745";
           stopDictation();
           transcriptArea.value = '';
         } else {
-          statusDiv.innerText = "Error al enviar a AppSheet";
+          console.error("Error devuelto por AppSheet:", result);
+          statusDiv.innerText = "Error al enviar. Revisa la consola o credenciales.";
           statusDiv.style.color = "#dc3545";
         }
       } catch (err) {
-        console.error(err);
-        statusDiv.innerText = "Error de conexión";
+        console.error("Error de conexión:", err);
+        statusDiv.innerText = "Error de conexión con AppSheet";
         statusDiv.style.color = "#dc3545";
       }
     }
