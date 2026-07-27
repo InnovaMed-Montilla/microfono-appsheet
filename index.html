@@ -201,20 +201,26 @@
       const accessKey = 'V2-QSmwH-L1WNE-URrC1-SEyRP-zYkPT-KKN5D-e7P8h-YWsKv';
       const tableName = 'InformeIA';
       
-      // Generamos la clave para la nueva fila en InformeIA
+     // Generamos la clave única para la fila del Informe en InformeIA
       const nuevoInformeId = "INF-" + Date.now();
-      const fechaHoy = new Date().toISOString().split('T')[0];
+      
+      // Formato de fecha en día/mes/año (ejemplo: 27/07/2026)
+      const hoy = new Date();
+      const dia = String(hoy.getDate()).padStart(2, '0');
+      const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+      const anio = hoy.getFullYear();
+      const fechaHoy = `${dia}/${mes}/${anio}`;
 
       const payload = {
-        "Action": "add",
+        "Action": "Add",
         "Properties": {
           "Locale": "es-ES"
         },
         "Rows": [
           {
-            "InformeIA_ID": rowId,
-            "PacienteID": idPaciente,  // <-- Vincula directamente al paciente
-            "Fecha": fechaHoy,         // Asigna la fecha actual
+            "InformeIA_ID": nuevoInformeId,
+            "IDPaciente": decodeURIComponent(idPaciente),
+            "Fecha": fechaHoy,
             "Transcripción": text
           }
         ]
