@@ -3,108 +3,205 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dictado Continuo Médicos</title>
+  <title>Dictado Continuo Consulta</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; text-align: center; background: #f4f6f9; }
-    textarea { width: 100%; height: 200px; margin: 15px 0; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
-    button { padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px; }
-    .btn-start { background: #28a745; color: white; }
-    .btn-stop { background: #dc3545; color: white; }
-    .btn-send { background: #007bff; color: white; width: 100%; font-weight: bold; }
-    .status { font-weight: bold; margin-bottom: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+      background-color: #f4f6f9;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .status {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #555;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    #start-btn {
+      background-color: #28a745;
+      color: white;
+    }
+    #stop-btn {
+      background-color: #dc3545;
+      color: white;
+    }
+    #save-btn {
+      background-color: #007bff;
+      color: white;
+      width: 100%;
+      margin-top: 15px;
+      font-size: 18px;
+    }
+    button:disabled {
+      background-color: #ccc !important;
+      cursor: not-allowed;
+    }
+    textarea {
+      width: 100%;
+      height: 220px;
+      padding: 15px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+      resize: vertical;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
 
-  <h2>Dictado Continuo Consulta</h2>
-  <div id="status" class="status" style="color: #666;">Estado: Detenido</div>
+  <div class="container">
+    <h2>Dictado Continuo Consulta</h2>
+    <div id="status" class="status">Estado: Detenido</div>
 
-  <button class="btn-start" onclick="startDictation()">▶ Iniciar Escucha</button>
-  <button class="btn-stop" onclick="stopDictation()">⏹ Pausar</button>
+    <div class="controls">
+      <button id="start-btn" onclick="startDictation()">▶ Iniciar Escucha</button>
+      <button id="stop-btn" onclick="stopDictation()" disabled>⏹ Pausar</button>
+    </div>
 
-  <textarea id="transcript" placeholder="El texto dictado aparecerá aquí..."></textarea>
+    <textarea id="transcript-box" placeholder="El texto dictado aparecerá aquí..."></textarea>
 
-  <button class="btn-send" onclick="sendToAppSheet()">📤 Guardar en Chat / AppSheet</button>
+    <button id="save-btn" onclick="sendToAppSheet()">💾 Guardar en Chat / AppSheet</button>
+  </div>
 
   <script>
-    // 1. Extraer Parámetros de la URL (ID de fila/paciente enviado desde AppSheet)
-    const urlParams = new URLSearchParams(window.location.search);
-    const rowId = urlParams.get('rowId') || '';
-
-    // 2. Configurar Reconocimiento de Voz
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
     let isListening = false;
-    const transcriptArea = document.getElementById('transcript');
-    const statusDiv = document.getElementById('status');
+    let finalTranscript = '';
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
-      recognition.continuous = true;     // Mantiene la escucha abierta
-      recognition.interimResults = true;  // Muestra resultados en tiempo real
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.lang = 'es-ES';
 
+      // MANEJO DE RESULTADOS (Evita duplicaciones en Android)
       recognition.onresult = (event) => {
-        let currentText = '';
-        for (let i = 0; i < event.results.length; i++) {
-          currentText += event.results[i][0].transcript;
-        }
-        transcriptArea.value = currentText;
-      };
+        let interimTranscript = '';
 
-      // TRUCO CLAVE: Si se apaga por silencio, lo reiniciamos de inmediato
-      recognition.onend = () => {
-        if (isListening) {
-          recognition.start();
-        } else {
-          statusDiv.innerText = "Estado: Pausado";
-          statusDiv.style.color = "#666";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' ';
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
         }
+
+        document.getElementById('transcript-box').value = finalTranscript + interimTranscript;
       };
 
       recognition.onerror = (event) => {
-        console.error("Error de voz:", event.error);
+        console.error("Error en reconocimiento de voz:", event.error);
+        document.getElementById('status').innerText = "Error: " + event.error;
       };
+
+      recognition.onend = () => {
+        // Si el usuario no lo pausó manualmente, se reinicia automáticamente para mantener dictado continuo
+        if (isListening) {
+          recognition.start();
+        } else {
+          document.getElementById('status').innerText = "Estado: Pausado";
+          document.getElementById('start-btn').disabled = false;
+          document.getElementById('stop-btn').disabled = true;
+        }
+      };
+
     } else {
-      alert("Tu navegador no soporta la Web Speech API.");
+      alert("Tu navegador no soporta el reconocimiento de voz nativo (Web Speech API).");
     }
 
     function startDictation() {
-      if (!recognition) return;
-      isListening = true;
-      recognition.start();
-      statusDiv.innerText = "Estado: Escuchando activamente...";
-      statusDiv.style.color = "#28a745";
+      if (recognition && !isListening) {
+        // Cargar texto previo si el usuario editó manualmente la casilla
+        finalTranscript = document.getElementById('transcript-box').value;
+        if (finalTranscript && !finalTranscript.endsWith(' ')) {
+          finalTranscript += ' ';
+        }
+        
+        isListening = true;
+        recognition.start();
+        document.getElementById('status').innerText = "Estado: Escuchando...";
+        document.getElementById('start-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = false;
+      }
     }
 
     function stopDictation() {
-      isListening = false;
-      if (recognition) recognition.stop();
+      if (recognition && isListening) {
+        isListening = false;
+        recognition.stop();
+      }
     }
 
-    // 3. Enviar el Texto a AppSheet vía API
+    // ENVÍO DE DATOS A APPSHEET
     async function sendToAppSheet() {
-      const text = transcriptArea.value.trim();
-      if (!text) {
-        alert("No hay texto para enviar.");
+      const saveBtn = document.getElementById('save-btn');
+      const text = document.getElementById('transcript-box').value;
+
+      if (!text.trim()) {
+        alert("No hay texto dictado para enviar.");
         return;
       }
 
-      statusDiv.innerText = "Estado: Enviando a AppSheet...";
+      // Obtener el ID del informe desde los parámetros de la URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const rowId = urlParams.get('rowId');
 
-      // CONFIGURA TUS DATOS AQUÍ:
+      if (!rowId) {
+        alert("Error: No se encontró el ID del informe (rowId) en la dirección URL.");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Guardando...";
+
+      // Credenciales exactas de tu aplicación
       const appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
       const accessKey = 'V2-QSmwH-L1WNE-URrC1-SEyRP-zYkPT-KKN5D-e7P8h-YWsKv';
-      const tableName = 'InformeIA'; // Nombre exacto de tu tabla en AppSheet (ej. Chat, Consultas, etc.)
+      const tableName = 'InformeIA';
 
       const payload = {
-        "Action": "edit",
-        "Properties": { "Locale": "es-ES" },
+        "Action": "Edit",
+        "Properties": {
+          "Locale": "es-ES"
+        },
         "Rows": [
           {
-            "Transcripción": text,   // Columna exacta configurada para el texto
-            "IDPaciente": pacienteId, // Pasa también el ID del paciente si usas "Add"
-            "InformeIA_ID": rowId    // ID recibido por URL para vincularlo (si aplica)
+            "InformeIA_ID": rowId,
+            "Transcripción": text
           }
         ]
       };
@@ -119,22 +216,20 @@
           body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
-
         if (response.ok) {
-          statusDiv.innerText = "¡Transcripción guardada con éxito!";
-          statusDiv.style.color = "#28a745";
-          stopDictation();
-          transcriptArea.value = '';
+          alert("¡Transcripción guardada con éxito en AppSheet!");
+          try {
+            window.close(); // Intenta cerrar la pestaña actual si el navegador lo permite
+          } catch(e) {}
         } else {
-          console.error("Error devuelto por AppSheet:", result);
-          statusDiv.innerText = "Error al enviar. Revisa la consola o credenciales.";
-          statusDiv.style.color = "#dc3545";
+          const errText = await response.text();
+          alert("Error al guardar en AppSheet: " + errText);
         }
-      } catch (err) {
-        console.error("Error de conexión:", err);
-        statusDiv.innerText = "Error de conexión con AppSheet";
-        statusDiv.style.color = "#dc3545";
+      } catch (error) {
+        alert("Error de conexión al enviar datos: " + error.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "💾 en el informe";
       }
     }
   </script>
