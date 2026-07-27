@@ -184,27 +184,23 @@
         return;
       }
 
-      // Obtener el ID del informe desde los parámetros de la URL
       const urlParams = new URLSearchParams(window.location.search);
-      const rowId = urlParams.get('rowId');
+      const idPaciente = urlParams.get('idPaciente') || urlParams.get('rowId');
 
-      if (!rowId) {
-        alert("Error: No se encontró el ID del informe (rowId) en la dirección URL.");
+      if (!idPaciente) {
+        alert("Error: No se encontró el ID del paciente en la dirección URL.");
         return;
       }
 
       saveBtn.disabled = true;
       saveBtn.innerText = "Guardando...";
 
-      // Credenciales exactas de tu aplicación
       const appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
       const accessKey = 'V2-QSmwH-L1WNE-URrC1-SEyRP-zYkPT-KKN5D-e7P8h-YWsKv';
       const tableName = 'InformeIA';
-      
-     // Generamos la clave única para la fila del Informe en InformeIA
+
       const nuevoInformeId = "INF-" + Date.now();
       
-      // Formato de fecha en día/mes/año (ejemplo: 27/07/2026)
       const hoy = new Date();
       const dia = String(hoy.getDate()).padStart(2, '0');
       const mes = String(hoy.getMonth() + 1).padStart(2, '0');
@@ -236,22 +232,22 @@
           body: JSON.stringify(payload)
         });
 
+        const resText = await response.text();
+
         if (response.ok) {
-          alert("¡Transcripción guardada con éxito en AppSheet!");
-          try {
-            window.close(); // Intenta cerrar la pestaña actual si el navegador lo permite
-          } catch(e) {}
+          alert("¡Informe guardado con éxito!");
+          try { window.close(); } catch(e) {}
         } else {
-          const errText = await response.text();
-          alert("Error al guardar en AppSheet: " + errText);
+          alert("AppSheet devolvió error " + response.status + ": " + resText);
         }
       } catch (error) {
-        alert("Error de conexión al enviar datos: " + error.message);
+        alert("Error en la ejecución: " + error.message);
       } finally {
         saveBtn.disabled = false;
-        saveBtn.innerText = "💾 en el informe";
+        saveBtn.innerText = "💾 Guardar en Chat / AppSheet";
       }
     }
+    
   </script>
 </body>
 </html>
