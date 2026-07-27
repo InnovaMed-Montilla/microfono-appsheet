@@ -188,7 +188,7 @@
       const idPaciente = urlParams.get('idPaciente') || urlParams.get('rowId');
 
       if (!idPaciente) {
-        alert("Error: No se encontró el ID del paciente en la dirección URL.");
+        alert("Error: No se encontró el ID del paciente en la URL.");
         return;
       }
 
@@ -196,7 +196,8 @@
       saveBtn.innerText = "Guardando...";
 
       const appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
-      const accessKey = 'V2-QSmwH-L1WNE-URrC1-SEyRP-zYkPT-KKN5D-e7P8h-YWsKv';
+      // NUEVA ACCESS KEY
+      const accessKey = 'V2-u0bT6-W34Ia-4wFIv-Oincz-ddxiG-bMLKB-jb3J7-J5WUl';
       const tableName = 'InformeIA';
 
       const nuevoInformeId = "INF-" + Date.now();
@@ -210,20 +211,23 @@
       const payload = {
         "Action": "Add",
         "Properties": {
-          "Locale": "es-ES"
+          "Locale": "es-ES",
+          "Timezone": "UTC"
         },
         "Rows": [
           {
             "InformeIA_ID": nuevoInformeId,
-            "IDPaciente": decodeURIComponent(idPaciente),
+            "IDPaciente": decodeURIComponent(idPaciente).trim(),
             "Fecha": fechaHoy,
-            "Transcripción": text
+            "Transcripción": text.trim()
           }
         ]
       };
 
+      const apiUrl = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`;
+
       try {
-        const response = await fetch(`https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`, {
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'ApplicationAccessKey': accessKey,
@@ -235,13 +239,13 @@
         const resText = await response.text();
 
         if (response.ok) {
-          alert("¡Informe guardado con éxito!");
+          alert("¡Informe guardado con éxito en AppSheet!");
           try { window.close(); } catch(e) {}
         } else {
-          alert("AppSheet devolvió error " + response.status + ": " + resText);
+          alert(`Error de AppSheet (${response.status}): ${resText}`);
         }
       } catch (error) {
-        alert("Error en la ejecución: " + error.message);
+        alert("Error de conexión: " + error.message);
       } finally {
         saveBtn.disabled = false;
         saveBtn.innerText = "💾 Guardar en Chat / AppSheet";
