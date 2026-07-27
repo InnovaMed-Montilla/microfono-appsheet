@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dictado Continuo Médicos</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; text-align: center; background: #f4f6f9; }
+    textarea { width: 100%; height: 200px; margin: 15px 0; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+    button { padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px; }
+    .btn-start { background: #28a745; color: white; }
+    .btn-stop { background: #dc3545; color: white; }
+    .btn-send { background: #007bff; color: white; width: 100%; font-weight: bold; }
+    .status { font-weight: bold; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>Dictado Continuo Consulta</h2>
+  <div id="status" class="status" style="color: #666;">Estado: Detenido</div>
+
+  <button class="btn-start" onclick="startDictation()">▶ Iniciar Escucha</button>
+  <button class="btn-stop" onclick="stopDictation()">⏹ Pausar</button>
+
+  <textarea id="transcript" placeholder="El texto dictado aparecerá aquí..."></textarea>
+
+  <button class="btn-send" onclick="sendToAppSheet()">📤 Guardar en Chat / AppSheet</button>
+
+  <script>
+    // 1. Extraer Parámetros de la URL (ID de fila/paciente enviado desde AppSheet)
+    const urlParams = new URLSearchParams(window.location.search);
+    const rowId = urlParams.get('rowId') || '';
+
+    // 2. Configurar Reconocimiento de Voz
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    let isListening = false;
+    const transcriptArea = document.getElementById('transcript');
+    const statusDiv = document.getElementById('status');
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;     // Mantiene la escucha abierta
+      recognition.interimResults = true;  // Muestra resultados en tiempo real
+      recognition.lang = 'es-ES';
+
+      recognition.onresult = (event) => {
+        let currentText = '';
+        for (let i = 0; i < event.results.length; i++) {
+          currentText += event.results[i][0].transcript;
+        }
+        transcriptArea.value = currentText;
+      };
+
+      // TRUCO CLAVE: Si se apaga por silencio, lo reiniciamos de inmediato
+      recognition.onend = () => {
+        if (isListening) {
+          recognition.start();
+        } else {
+          statusDiv.innerText = "Estado: Pausado";
+          statusDiv.style.color = "#666";
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Error de voz:", event.error);
+      };
+    } else {
+      alert("Tu navegador no soporta la Web Speech API.");
+    }
+
+    function startDictation() {
+      if (!recognition) return;
+      isListening = true;
+      recognition.start();
+      statusDiv.innerText = "Estado: Escuchando activamente...";
+      statusDiv.style.color = "#28a745";
+    }
+
+    function stopDictation() {
+      isListening = false;
+      if (recognition) recognition.stop();
+    }
+
+    // 3. Enviar el Texto a AppSheet vía API
+    async function sendToAppSheet() {
+      const text = transcriptArea.value.trim();
+      if (!text) {
+        alert("No hay texto para enviar.");
+        return;
+      }
+
+      statusDiv.innerText = "Estado: Enviando a AppSheet...";
+
+      // CONFIGURA TUS DATOS AQUÍ:
+      const appId = 'TU_APP_ID_AQUÍ';
+      const accessKey = 'TU_APPLICATION_ACCESS_KEY_AQUÍ';
+      const tableName = 'Chat'; // Nombre exacto de tu tabla en AppSheet
+
+      const payload = {
+        "Action": "Add",
+        "Properties": { "Locale": "es-ES" },
+        "Rows": [
+          {
+            "Mensaje": text,         // Nombre del campo de texto en tu tabla
+            "ID_Consulta": rowId     // Opcional: Para vincular al registro/chat activo
+          }
+        ]
+      };
+
+      try {
+        const response = await fetch(`https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`, {
+          method: 'POST',
+          headers: {
+            'ApplicationAccessKey': accessKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          statusDiv.innerText = "¡Mensaje guardado con éxito!";
+          statusDiv.style.color = "#007bff";
+          stopDictation();
+          transcriptArea.value = '';
+        } else {
+          statusDiv.innerText = "Error al enviar a AppSheet";
+          statusDiv.style.color = "#dc3545";
+        }
+      } catch (err) {
+        console.error(err);
+        statusDiv.innerText = "Error de conexión";
+        statusDiv.style.color = "#dc3545";
+      }
+    }
+  </script>
+</body>
+</html>
