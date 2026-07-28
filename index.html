@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dictado Continuo Consulta - Dra. Luisa Montilla</title>
+  <title>Dictado Continuo Consulta - Dra. Luisa Montilla | Innova Med</title>
   <style>
     :root {
       --primary-color: #932938; /* Rojo borgoña corporativo */
@@ -39,6 +39,8 @@
       border-radius: 6px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
       border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
     }
 
     /* Encabezado Corporativo */
@@ -50,30 +52,28 @@
       padding-bottom: 18px;
       margin-bottom: 25px;
       gap: 15px;
+      width: 100%;
     }
 
     .brand-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
-    .logo-text {
+    /* Insignia Innova Med */
+    .innovamed-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: #f0f7ff;
+      border: 1px solid #bae6fd;
+      color: #0284c7;
+      padding: 4px 10px;
+      border-radius: 12px;
       font-family: 'Arial', sans-serif;
-      font-size: 22px;
-      font-weight: bold;
-      color: var(--primary-color);
-      letter-spacing: 0.5px;
-      line-height: 1.1;
-    }
-
-    .logo-subtext {
       font-size: 11px;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      display: block;
-      margin-top: 2px;
+      font-weight: bold;
     }
 
     .clinic-info {
@@ -102,6 +102,7 @@
       margin-bottom: 20px;
       text-transform: uppercase;
       letter-spacing: 1px;
+      width: 100%;
     }
 
     /* Barra de Estado */
@@ -116,6 +117,7 @@
       margin-bottom: 20px;
       font-family: 'Arial', sans-serif;
       font-size: 14px;
+      width: 100%;
     }
 
     .status-indicator {
@@ -152,6 +154,7 @@
       gap: 15px;
       margin-bottom: 20px;
       font-family: 'Arial', sans-serif;
+      width: 100%;
     }
 
     button {
@@ -239,6 +242,15 @@
       background-color: #ffffff;
     }
 
+    .footer-credits {
+      text-align: center;
+      font-family: 'Arial', sans-serif;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 15px;
+      width: 100%;
+    }
+
     /* Adaptabilidad Móvil */
     @media (max-width: 600px) {
       .sheet-container {
@@ -270,21 +282,18 @@
   <div class="sheet-container">
     <!-- Encabezado Corporativo estilo Informe Médico -->
     <div class="header">
-      <div class="brand-logo" style="display: flex; align-items: center; gap: 12px;">
-        <!-- Logo de Innova Med -->
+      <div class="brand-logo">
         <img src="https://lh3.googleusercontent.com/d/1Tlf8Sn2I2glfRitRd3sbaMan3A1WVaAU" 
              alt="Innova Med Logo" 
              style="height: 55px; width: auto; object-fit: contain;">
-        
         <div>
           <div class="innovamed-badge">⚡ Powered by Innova Med</div>
         </div>
       </div>
-      </div>
       <div class="clinic-info">
         <strong>CONSULTORIO MÉDICO DERMATOLÓGICO</strong>
         Dra. Luisa Montilla - Dermatólogo UCV<br>
-         Caracas | Innova Med
+        Caracas | Innova Med
       </div>
     </div>
 
@@ -296,7 +305,7 @@
         <div id="status-dot" class="status-dot"></div>
         <span id="status">Estado: Detenido</span>
       </div>
-      <span style="font-size: 12px; color: #64748b; font-family: sans-serif;">Asistente de Voz IA</span>
+      <span style="font-size: 12px; color: #64748b; font-family: sans-serif;">Dictado Inteligente IA</span>
     </div>
 
     <!-- Botones de Control -->
@@ -310,6 +319,8 @@
 
     <!-- Botón de Guardado -->
     <button id="save-btn" onclick="sendToAppSheet()">💾 Guardar Informe en AppSheet</button>
+    
+    <div class="footer-credits">Innova Med Platform • Sistema de Asistencia Clínica</div>
   </div>
 
   <script>
