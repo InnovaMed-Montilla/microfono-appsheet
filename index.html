@@ -428,9 +428,10 @@
       saveBtn.innerText = "Guardando...";
 
       const appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
-      // NUEVA ACCESS KEY
       const accessKey = 'V2-u0bT6-W34Ia-4wFIv-Oincz-ddxiG-bMLKB-jb3J7-J5WUl';
-      const tableName = 'InformeIA';
+      
+      // Nombre exacto de tu nueva tabla
+      const tableName = 'InformeMedico';
 
       const nuevoInformeId = "INF-" + Date.now();
       
@@ -440,6 +441,7 @@
       const anio = hoy.getFullYear();
       const fechaHoy = `${dia}/${mes}/${anio}`;
 
+      // Estructura exacta con las celdas de tu tabla InformeMedico
       const payload = {
         "Action": "Add",
         "Properties": {
@@ -448,7 +450,7 @@
         },
         "Rows": [
           {
-            "InformeIA_ID": nuevoInformeId,
+            "InformeMedID": nuevoInformeId,
             "IDPaciente": decodeURIComponent(idPaciente).trim(),
             "Fecha": fechaHoy,
             "Transcripción": text.trim()
@@ -471,7 +473,7 @@
         const resText = await response.text();
 
         if (response.ok) {
-          alert("¡Informe guardado con éxito en AppSheet!");
+          alert("¡Informe guardado con éxito en la tabla InformeMedico!");
           try { window.close(); } catch(e) {}
         } else {
           alert(`Error de AppSheet (${response.status}): ${resText}`);
@@ -482,7 +484,7 @@
         saveBtn.disabled = false;
         saveBtn.innerText = "💾 Guardar Informe en AppSheet";
       }
-    }
+    }  
   </script>
 </body>
 </html>
