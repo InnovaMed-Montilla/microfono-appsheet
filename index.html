@@ -299,7 +299,7 @@
 
   <script>
     // ==========================================
-    // CONFIGURACIÓN DE AUDIO Y ANIMACIÓN CANVAS
+    // CONFIGURACIÓN DE ANIMACIÓN CANVAS (FIX SEGURIDAD)
     // ==========================================
     const canvas = document.getElementById('waveform');
     const canvasCtx = canvas.getContext('2d');
@@ -321,7 +321,7 @@
 
       canvasCtx.clearRect(0, 0, width, height);
 
-      // Amplitud suave en reposo y mayor en dictado (Animación Fluida Independiente)
+      // Amplitud suave en reposo y mayor en dictado (Animación Independiente del Micrófono)
       const targetAmp = isListening ? height * 0.35 : 6;
       phase += isListening ? 0.04 : 0.015;
 
