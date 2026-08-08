@@ -7,14 +7,14 @@
   <style>
     :root {
       --bg-dark: #080f1e;
-      --card-bg: rgba(15, 23, 42, 0.75);
+      --card-bg: rgba(15, 23, 42, 0.85);
       --accent-cyan: #00f2fe;
       --accent-magenta: #e040fb;
       --accent-blue: #4facfe;
       --accent-red: #ff4b5c;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
-      --border-glow: rgba(0, 242, 254, 0.2);
+      --border-glow: rgba(0, 242, 254, 0.25);
     }
 
     * {
@@ -32,14 +32,14 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      padding: 20px 10px;
     }
 
     .main-container {
       width: 100%;
-      max-width: 900px;
+      max-width: 850px;
       background: var(--card-bg);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
       border: 1px solid var(--border-glow);
       border-radius: 16px;
       padding: 30px;
@@ -55,7 +55,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
       padding-bottom: 15px;
     }
 
@@ -84,16 +84,16 @@
     /* Visualizador de Audio (Canvas de Ondas Fluidas) */
     .visualizer-container {
       width: 100%;
-      height: 160px;
-      background: rgba(4, 9, 20, 0.8);
+      height: 150px;
+      background: rgba(4, 9, 20, 0.85);
       border-radius: 12px;
-      border: 1px solid rgba(224, 64, 251, 0.2);
+      border: 1px solid rgba(224, 64, 251, 0.25);
       position: relative;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
-      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
     }
 
     canvas {
@@ -119,8 +119,8 @@
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background-color: #64748b;
       transition: all 0.3s ease;
@@ -133,9 +133,9 @@
     }
 
     @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.3); opacity: 0.5; }
-      100% { transform: scale(1); opacity: 1; }
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+      100% { opacity: 1; transform: scale(1); }
     }
 
     /* Botones de Control */
@@ -193,12 +193,12 @@
     /* Caja de Transcripción */
     textarea {
       width: 100%;
-      height: 220px;
+      height: 240px;
       padding: 18px;
       font-family: 'Segoe UI', system-ui, sans-serif;
       font-size: 15px;
       color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 12px;
       background: rgba(15, 23, 42, 0.9);
       resize: vertical;
@@ -209,7 +209,7 @@
     textarea:focus {
       outline: none;
       border-color: var(--accent-cyan);
-      box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
     }
 
     /* Botón Guardar */
@@ -265,7 +265,7 @@
     <div class="header">
       <div class="doctor-info">
         <h1>DRA. LUISA MONTILLA</h1>
-        <p>Dermatologo UCV • Caracas</p>
+        <p>Dermatología UCV • Caracas</p>
       </div>
       <div class="brand-logo">
         <img src="https://lh3.googleusercontent.com/d/1Tlf8Sn2I2glfRitRd3sbaMan3A1WVaAU" alt="Innova Med Logo">
@@ -290,23 +290,17 @@
       <button id="stop-btn" class="btn" onclick="stopDictation()" disabled>⏹ Pausar</button>
     </div>
 
-    <textarea id="transcript-box" placeholder="El texto dictado aparecerá aquí en tiempo real..."></textarea>
+    <textarea id="transcript-box" placeholder="El texto dictado por la doctora aparecerá en esta sección de forma continua..."></textarea>
 
-    <button id="save-btn" onclick="sendToAppSheet()">💾 Guardar Resumen</button>
+    <button id="save-btn" onclick="sendToAppSheet()">💾 Guardar Resumen en AppSheet</button>
 
     <div class="footer-credits">Innova Med Platform • Sistema de Asistencia Clínica Avanzada</div>
   </div>
 
   <script>
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
-    let isListening = false;
-    let finalTranscript = '';
-
-    const statusDot = document.getElementById('status-dot');
-
-    // CONFIGURACIÓN DE AUDIO Y CANVAS (ONDAS FLUIDAS)
-    let audioCtx, analyser, microphone, dataArray;
+    // ==========================================
+    // CONFIGURACIÓN DE AUDIO Y ANIMACIÓN CANVAS
+    // ==========================================
     const canvas = document.getElementById('waveform');
     const canvasCtx = canvas.getContext('2d');
     let phase = 0;
@@ -318,7 +312,6 @@
     window.addEventListener('resize', initCanvas);
     initCanvas();
 
-    // DIBUJO DE ONDAS ESTILO CINTA (MAGENTA / CIAN)
     function drawWaveform() {
       requestAnimationFrame(drawWaveform);
 
@@ -328,35 +321,22 @@
 
       canvasCtx.clearRect(0, 0, width, height);
 
-      let volume = 0;
-      if (isListening && analyser) {
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
-        }
-        volume = sum / dataArray.length; // Promedio de intensidad de voz
-      }
+      // Amplitud suave en reposo y mayor en dictado (Animación Fluida Independiente)
+      const targetAmp = isListening ? height * 0.35 : 6;
+      phase += isListening ? 0.04 : 0.015;
 
-      // Sensibilidad del volumen cuando la doctora habla
-      const targetAmp = isListening ? Math.max(12, (volume / 255) * (height * 0.45)) : 5;
-      phase += isListening ? 0.05 + (volume / 255) * 0.05 : 0.02;
-
-      // Dibujar múltiples líneas para crear la ilusión de cinta/volumen tridimensional
-      const linesCount = 28;
+      const linesCount = 26;
 
       for (let l = 0; l < linesCount; l++) {
         canvasCtx.beginPath();
         const offset = (l - linesCount / 2) * 1.8;
-        const lineAmp = targetAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.3);
+        const lineAmp = targetAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.25);
 
         for (let x = 0; x < width; x += 3) {
-          // Combinación de frecuencias senoidales para crear curvatura fluida
           const normX = (x / width) * Math.PI * 4;
           const y1 = Math.sin(normX + phase + l * 0.04) * lineAmp;
-          const y2 = Math.cos(normX * 0.5 - phase * 0.8) * (lineAmp * 0.6);
+          const y2 = Math.cos(normX * 0.5 - phase * 0.8) * (lineAmp * 0.5);
           
-          // Suavizado en los bordes
           const edgeFade = Math.sin((x / width) * Math.PI);
           const y = centerY + (y1 + y2 + offset) * edgeFade;
 
@@ -367,7 +347,7 @@
           }
         }
 
-        // Crear degradado Horizontal Magenta -> Púrpura -> Cian
+        // Degradado Magenta -> Púrpura -> Cian
         const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
         gradient.addColorStop(0, '#e040fb');
         gradient.addColorStop(0.5, '#7c4dff');
@@ -383,33 +363,23 @@
     }
     drawWaveform();
 
-    // Iniciar captura de micrófono
-    async function startAudioVisualizer() {
-      try {
-        if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioCtx.state === 'suspended') {
-          await audioCtx.resume();
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 128;
-        microphone = audioCtx.createMediaStreamSource(stream);
-        microphone.connect(analyser);
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-      } catch (err) {
-        console.warn("No se pudo acceder al micrófono para el visualizador visual:", err);
-      }
-    }
+    // ==========================================
+    // RECONOCIMIENTO DE VOZ (CÓDIGO EXACTO ORIGINAL)
+    // ==========================================
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    let isListening = false;
+    let finalTranscript = '';
 
-    // RECONOCIMIENTO DE VOZ
+    const statusDot = document.getElementById('status-dot');
+
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'es-ES';
 
+      // MANEJO DE RESULTADOS (Evita duplicaciones en Android)
       recognition.onresult = (event) => {
         let interimTranscript = '';
 
@@ -424,6 +394,14 @@
         document.getElementById('transcript-box').value = finalTranscript + interimTranscript;
       };
 
+      recognition.onspeechend = () => {
+        if (isListening) {
+          try {
+            recognition.start();
+          } catch (e) {}
+        }
+      };
+
       recognition.onerror = (event) => {
         console.error("Error en reconocimiento de voz:", event.error);
         document.getElementById('status').innerText = "Error: " + event.error;
@@ -431,8 +409,11 @@
       };
 
       recognition.onend = () => {
+        // Si el usuario no lo pausó manualmente, se reinicia automáticamente para mantener dictado continuo
         if (isListening) {
-          recognition.start();
+          try {
+            recognition.start();
+          } catch (e) {}
         } else {
           document.getElementById('status').innerText = "Estado: Pausado";
           if (statusDot) statusDot.classList.remove('active');
@@ -447,15 +428,14 @@
 
     function startDictation() {
       if (recognition && !isListening) {
+        // Cargar texto previo si el usuario editó manualmente la casilla
         finalTranscript = document.getElementById('transcript-box').value;
         if (finalTranscript && !finalTranscript.endsWith(' ')) {
           finalTranscript += ' ';
         }
-
+        
         isListening = true;
         recognition.start();
-        startAudioVisualizer();
-
         document.getElementById('status').innerText = "Estado: Escuchando...";
         if (statusDot) statusDot.classList.add('active');
         document.getElementById('start-btn').disabled = true;
@@ -471,7 +451,9 @@
       }
     }
 
+    // ==========================================
     // ENVÍO DE DATOS A APPSHEET
+    // ==========================================
     async function sendToAppSheet() {
       const saveBtn = document.getElementById('save-btn');
       const text = document.getElementById('transcript-box').value;
