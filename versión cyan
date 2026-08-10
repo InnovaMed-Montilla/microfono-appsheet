@@ -50,7 +50,7 @@
       gap: 20px;
     }
 
-    /* Header distribuido */
+    /* Header */
     .header {
       display: flex;
       justify-content: space-between;
@@ -81,10 +81,10 @@
       filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.3));
     }
 
-    /* Visualizador de Audio (Canvas de Ondas Fluidas) */
+    /* Visualizador */
     .visualizer-container {
       width: 100%;
-      height: 150px;
+      height: 130px;
       background: rgba(4, 9, 20, 0.85);
       border-radius: 12px;
       border: 1px solid rgba(224, 64, 251, 0.25);
@@ -99,6 +99,7 @@
     canvas {
       width: 100%;
       height: 100%;
+      display: block;
     }
 
     /* Barra de Estado */
@@ -146,7 +147,7 @@
     }
 
     .btn {
-      padding: 12px 24px;
+      padding: 14px 28px;
       font-size: 13px;
       font-weight: 700;
       border: none;
@@ -272,7 +273,7 @@
       </div>
     </div>
 
-    <!-- Visualizador de Ondas de Cinta Fluidas -->
+    <!-- Visualizador -->
     <div class="visualizer-container">
       <canvas id="waveform"></canvas>
     </div>
@@ -286,68 +287,76 @@
     </div>
 
     <div class="controls">
-      <button id="start-btn" class="btn" onclick="startDictation()">🎙️ Iniciar Escucha</button>
-      <button id="stop-btn" class="btn" onclick="stopDictation()" disabled>⏹ Pausar</button>
+      <button id="start-btn" class="btn">🎙️ Iniciar Escucha</button>
+      <button id="stop-btn" class="btn" disabled>⏹ Pausar</button>
     </div>
 
     <textarea id="transcript-box" placeholder="El texto dictado por la doctora aparecerá en esta sección de forma continua..."></textarea>
 
-    <button id="save-btn" onclick="sendToAppSheet()">💾 Guardar Resumen en AppSheet</button>
+    <button id="save-btn">💾 Guardar Resumen en AppSheet</button>
 
     <div class="footer-credits">Innova Med Platform • Sistema de Asistencia Clínica Avanzada</div>
   </div>
 
   <script>
+    // Variables Globales
+    let isListening = false;
+    let recognition = null;
+    let finalTranscript = '';
+
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const statusTxt = document.getElementById('status');
+    const statusDot = document.getElementById('status-dot');
+    const transcriptBox = document.getElementById('transcript-box');
+
     // ==========================================
-    // CONFIGURACIÓN DE AUDIO Y ANIMACIÓN CANVAS
+    // 1. INICIALIZACIÓN DE CANVAS Y ONDAS
     // ==========================================
     const canvas = document.getElementById('waveform');
     const canvasCtx = canvas.getContext('2d');
     let phase = 0;
 
-    function initCanvas() {
-      canvas.width = canvas.parentElement.clientWidth;
-      canvas.height = canvas.parentElement.clientHeight;
+    function resizeCanvas() {
+      if (canvas && canvas.parentElement) {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+      }
     }
-    window.addEventListener('resize', initCanvas);
-    initCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
     function drawWaveform() {
       requestAnimationFrame(drawWaveform);
-
       const width = canvas.width;
       const height = canvas.height;
-      const centerY = height / 2;
+      if (!width || !height) return;
 
+      const centerY = height / 2;
       canvasCtx.clearRect(0, 0, width, height);
 
-      // Amplitud suave en reposo y mayor en dictado (Animación Fluida Independiente)
-      const targetAmp = isListening ? height * 0.35 : 6;
-      phase += isListening ? 0.04 : 0.015;
+      const targetAmp = isListening ? height * 0.32 : 5;
+      phase += isListening ? 0.05 : 0.015;
 
-      const linesCount = 26;
+      const linesCount = 20;
 
       for (let l = 0; l < linesCount; l++) {
         canvasCtx.beginPath();
-        const offset = (l - linesCount / 2) * 1.8;
-        const lineAmp = targetAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.25);
+        const offset = (l - linesCount / 2) * 2;
+        const lineAmp = targetAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.3);
 
-        for (let x = 0; x < width; x += 3) {
+        for (let x = 0; x < width; x += 4) {
           const normX = (x / width) * Math.PI * 4;
-          const y1 = Math.sin(normX + phase + l * 0.04) * lineAmp;
-          const y2 = Math.cos(normX * 0.5 - phase * 0.8) * (lineAmp * 0.5);
-          
+          const y1 = Math.sin(normX + phase + l * 0.05) * lineAmp;
+          const y2 = Math.cos(normX * 0.5 - phase * 0.8) * (lineAmp * 0.4);
           const edgeFade = Math.sin((x / width) * Math.PI);
           const y = centerY + (y1 + y2 + offset) * edgeFade;
 
-          if (x === 0) {
-            canvasCtx.moveTo(x, y);
-          } else {
-            canvasCtx.lineTo(x, y);
-          }
+          if (x === 0) canvasCtx.moveTo(x, y);
+          else canvasCtx.lineTo(x, y);
         }
 
-        // Degradado Magenta -> Púrpura -> Cian
         const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
         gradient.addColorStop(0, '#e040fb');
         gradient.addColorStop(0.5, '#7c4dff');
@@ -355,23 +364,17 @@
 
         canvasCtx.strokeStyle = gradient;
         canvasCtx.lineWidth = 1.5;
-        canvasCtx.globalAlpha = 0.85 - (Math.abs(l - linesCount / 2) / linesCount) * 0.5;
+        canvasCtx.globalAlpha = 0.8 - (Math.abs(l - linesCount / 2) / linesCount) * 0.5;
         canvasCtx.stroke();
       }
-
       canvasCtx.globalAlpha = 1.0;
     }
     drawWaveform();
 
     // ==========================================
-    // RECONOCIMIENTO DE VOZ (CÓDIGO EXACTO ORIGINAL)
+    // 2. CONFIGURACIÓN DEL RECONOCIMIENTO DE VOZ
     // ==========================================
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
-    let isListening = false;
-    let finalTranscript = '';
-
-    const statusDot = document.getElementById('status-dot');
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
@@ -379,10 +382,8 @@
       recognition.interimResults = true;
       recognition.lang = 'es-ES';
 
-      // MANEJO DE RESULTADOS (Evita duplicaciones en Android)
       recognition.onresult = (event) => {
         let interimTranscript = '';
-
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscript += event.results[i][0].transcript + ' ';
@@ -390,73 +391,84 @@
             interimTranscript += event.results[i][0].transcript;
           }
         }
-
-        document.getElementById('transcript-box').value = finalTranscript + interimTranscript;
-      };
-
-      recognition.onspeechend = () => {
-        if (isListening) {
-          try {
-            recognition.start();
-          } catch (e) {}
-        }
+        transcriptBox.value = finalTranscript + interimTranscript;
       };
 
       recognition.onerror = (event) => {
-        console.error("Error en reconocimiento de voz:", event.error);
-        document.getElementById('status').innerText = "Error: " + event.error;
-        if (statusDot) statusDot.classList.remove('active');
+        console.error("Error Speech:", event.error);
+        if (event.error === 'not-allowed') {
+          alert("Por favor, permite el acceso al micrófono en el navegador.");
+        }
+        statusTxt.innerText = "Error: " + event.error;
+        stopDictationUI();
       };
 
       recognition.onend = () => {
-        // Si el usuario no lo pausó manualmente, se reinicia automáticamente para mantener dictado continuo
         if (isListening) {
-          try {
-            recognition.start();
-          } catch (e) {}
+          try { recognition.start(); } catch (e) {}
         } else {
-          document.getElementById('status').innerText = "Estado: Pausado";
-          if (statusDot) statusDot.classList.remove('active');
-          document.getElementById('start-btn').disabled = false;
-          document.getElementById('stop-btn').disabled = true;
+          stopDictationUI();
         }
       };
-
     } else {
-      alert("Tu navegador no soporta el reconocimiento de voz nativo (Web Speech API).");
+      alert("Navegador no compatible con Web Speech API. Usa Google Chrome o Edge.");
     }
 
-    function startDictation() {
+    // ==========================================
+    // 3. EVENTOS DE LOS BOTONES
+    // ==========================================
+    startBtn.addEventListener('click', async () => {
+      // 1. Solicitar permisos explicitos de micrófono al navegador
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Liberar el stream inmediatamente para dejar el canal libre a SpeechRecognition
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        alert("Acceso al micrófono denegado. Habilita los permisos en la barra del navegador.");
+        return;
+      }
+
+      // 2. Iniciar reconocimiento
       if (recognition && !isListening) {
-        // Cargar texto previo si el usuario editó manualmente la casilla
-        finalTranscript = document.getElementById('transcript-box').value;
+        finalTranscript = transcriptBox.value;
         if (finalTranscript && !finalTranscript.endsWith(' ')) {
           finalTranscript += ' ';
         }
-        
-        isListening = true;
-        recognition.start();
-        document.getElementById('status').innerText = "Estado: Escuchando...";
-        if (statusDot) statusDot.classList.add('active');
-        document.getElementById('start-btn').disabled = true;
-        document.getElementById('stop-btn').disabled = false;
-      }
-    }
 
-    function stopDictation() {
+        isListening = true;
+        try {
+          recognition.start();
+          statusTxt.innerText = "Estado: Escuchando...";
+          statusDot.classList.add('active');
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        } catch (e) {
+          console.error("No se pudo iniciar:", e);
+        }
+      }
+    });
+
+    stopBtn.addEventListener('click', () => {
       if (recognition && isListening) {
         isListening = false;
         recognition.stop();
-        if (statusDot) statusDot.classList.remove('active');
+        stopDictationUI();
       }
+    });
+
+    function stopDictationUI() {
+      isListening = false;
+      statusTxt.innerText = "Estado: Pausado";
+      statusDot.classList.remove('active');
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
     }
 
     // ==========================================
-    // ENVÍO DE DATOS A APPSHEET
+    // 4. GUARDAR EN APPSHEET
     // ==========================================
-    async function sendToAppSheet() {
-      const saveBtn = document.getElementById('save-btn');
-      const text = document.getElementById('transcript-box').value;
+    saveBtn.addEventListener('click', async () => {
+      const text = transcriptBox.value;
 
       if (!text.trim()) {
         alert("No hay texto dictado para enviar.");
@@ -517,7 +529,7 @@
         const resText = await response.text();
 
         if (response.ok) {
-          alert("¡Informe guardado con éxito en la tabla InformeMedico!");
+          alert("¡Informe guardado con éxito en AppSheet!");
           try { window.close(); } catch(e) {}
         } else {
           alert(`Error de AppSheet (${response.status}): ${resText}`);
@@ -528,7 +540,7 @@
         saveBtn.disabled = false;
         saveBtn.innerText = "💾 Guardar Resumen en AppSheet";
       }
-    } 
+    });
   </script>
 </body>
 </html>
