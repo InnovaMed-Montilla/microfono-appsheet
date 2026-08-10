@@ -304,7 +304,7 @@
     let recognition = null;
     let finalTranscript = '';
 
-    // Variables Audio Web API (Para captura suave de volumen)
+    // Variables Audio Web API
     let audioCtx = null;
     let analyser = null;
     let microphoneStream = null;
@@ -319,7 +319,7 @@
     const transcriptBox = document.getElementById('transcript-box');
 
     // ==========================================
-    // 1. INICIALIZACIÓN DE CANVAS Y BARRAS SUAVES
+    // 1. CINTA FLUIDA CON AMBITO REAL DE VOZ
     // ==========================================
     const canvas = document.getElementById('waveform');
     const canvasCtx = canvas.getContext('2d');
@@ -340,9 +340,10 @@
       const height = canvas.height;
       if (!width || !height) return;
 
+      const centerY = height / 2;
       canvasCtx.clearRect(0, 0, width, height);
 
-      // Calcular volumen real suave si hay flujo activo
+      // Obtener volumen real si el micrófono está activo
       let targetVolume = 0;
       if (isListening && analyser && dataArray) {
         analyser.getByteFrequencyData(dataArray);
@@ -353,55 +354,51 @@
         targetVolume = sum / dataArray.length / 255; // Escala 0.0 a 1.0
       }
 
-      // Transición suave (Interpolación lineal) para eliminar vibración brusca
-      currentVolume += (targetVolume - currentVolume) * 0.15;
-      phase += isListening ? 0.04 : 0.01;
+      // Suavizado de volumen para evitar brincos bruscos
+      currentVolume += (targetVolume - currentVolume) * 0.12;
 
-      const barWidth = 3;
-      const barGap = 3;
-      const totalBars = Math.floor(width / (barWidth + barGap));
-      const centerY = height / 2;
+      // Movimiento continuo de la onda
+      phase += isListening ? 0.04 : 0.015;
 
-      // Crear degradado Horizontal Cyan -> Magenta
+      // Amplitud basada en el volumen del habla
+      const baseAmp = isListening ? (height * 0.42 * currentVolume + 6) : 4;
+      const linesCount = 14;
+
+      // Crear degradado lineal de Cyan a Magenta
       const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
       gradient.addColorStop(0, '#00f2fe');
       gradient.addColorStop(0.5, '#7c4dff');
       gradient.addColorStop(1, '#e040fb');
 
-      canvasCtx.fillStyle = gradient;
-
-      for (let i = 0; i < totalBars; i++) {
-        const x = i * (barWidth + barGap);
-        const normX = (i / totalBars) * Math.PI * 2;
-
-        // Modulación por envolvente sinusoidal suave estilo onda comprimida
-        const wave1 = Math.sin(normX * 3 + phase) * 0.35;
-        const wave2 = Math.cos(normX * 6 - phase * 1.5) * 0.25;
-        const shapeEnvelope = Math.sin((i / totalBars) * Math.PI); // Forma redondeada centrada
-
-        // Altura base cuando está quieto
-        const idleHeight = (Math.sin(normX * 4 + phase) * 0.15 + 0.85) * 6 * shapeEnvelope;
-        
-        // Altura activa modulada por el volumen de voz real
-        const activeHeight = (0.35 + wave1 + wave2) * (height * 0.85) * currentVolume * shapeEnvelope;
-
-        const barHeight = Math.max(3, isListening ? activeHeight : idleHeight);
-        const y = centerY - barHeight / 2;
-
-        // Dibujar barras finas con puntas redondeadas
+      for (let l = 0; l < linesCount; l++) {
         canvasCtx.beginPath();
-        if (canvasCtx.roundRect) {
-          canvasCtx.roundRect(x, y, barWidth, barHeight, barWidth / 2);
-        } else {
-          canvasCtx.rect(x, y, barWidth, barHeight);
+        const offset = (l - linesCount / 2) * 2.5;
+        const lineAmp = baseAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.35);
+
+        for (let x = 0; x < width; x += 3) {
+          const normX = (x / width) * Math.PI * 4;
+          const y1 = Math.sin(normX + phase + l * 0.06) * lineAmp;
+          const y2 = Math.cos(normX * 0.5 - phase * 0.7) * (lineAmp * 0.4);
+          
+          // Atenuación sutil en las esquinas para dar forma ovalada/cinta
+          const edgeFade = Math.sin((x / width) * Math.PI);
+          const y = centerY + (y1 + y2 + offset) * edgeFade;
+
+          if (x === 0) canvasCtx.moveTo(x, y);
+          else canvasCtx.lineTo(x, y);
         }
-        canvasCtx.fill();
+
+        canvasCtx.strokeStyle = gradient;
+        canvasCtx.lineWidth = 1.8;
+        canvasCtx.globalAlpha = 0.85 - (Math.abs(l - linesCount / 2) / linesCount) * 0.5;
+        canvasCtx.stroke();
       }
+      canvasCtx.globalAlpha = 1.0;
     }
     drawWaveform();
 
     // ==========================================
-    // 2. CONFIGURACIÓN DEL RECONOCIMIENTO DE VOZ
+    // 2. RECONOCIMIENTO DE VOZ - INTACTO
     // ==========================================
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -451,11 +448,11 @@
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         microphoneStream = stream;
 
-        // Configurar analizador de volumen en vivo sin interferir con Speech
+        // Captura de volumen suave para el gráfico
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 64;
-        analyser.smoothingTimeConstant = 0.8; // Suaviza transiciones de ruido
+        analyser.smoothingTimeConstant = 0.85; 
         const source = audioCtx.createMediaStreamSource(stream);
         source.connect(analyser);
         dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -499,7 +496,6 @@
       startBtn.disabled = false;
       stopBtn.disabled = true;
 
-      // Limpiar recursos de audio del visualizador
       if (microphoneStream) {
         microphoneStream.getTracks().forEach(track => track.stop());
         microphoneStream = null;
@@ -511,7 +507,7 @@
     }
 
     // ==========================================
-    // 4. GUARDAR EN APPSHEET
+    // 4. APPSHEET - INTACTO
     // ==========================================
     saveBtn.addEventListener('click', async () => {
       const text = transcriptBox.value;
