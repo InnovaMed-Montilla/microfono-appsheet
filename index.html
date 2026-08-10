@@ -84,7 +84,7 @@
     /* Visualizador */
     .visualizer-container {
       width: 100%;
-      height: 140px;
+      height: 150px;
       background: rgba(4, 9, 20, 0.95);
       border-radius: 12px;
       border: 1px solid rgba(224, 64, 251, 0.25);
@@ -319,7 +319,7 @@
     const transcriptBox = document.getElementById('transcript-box');
 
     // ==========================================
-    // 1. CINTA FLUIDA CON AMBITO REAL DE VOZ
+    // 1. CINTA DINÁMICA CON ALTA SENSIBILIDAD
     // ==========================================
     const canvas = document.getElementById('waveform');
     const canvasCtx = canvas.getContext('2d');
@@ -343,28 +343,31 @@
       const centerY = height / 2;
       canvasCtx.clearRect(0, 0, width, height);
 
-      // Obtener volumen real si el micrófono está activo
+      // Capturar volumen con boost de amplificación
       let targetVolume = 0;
       if (isListening && analyser && dataArray) {
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
+        // Enfocar la captura en el rango de frecuencia de la voz humana
+        const voiceBins = Math.floor(dataArray.length * 0.7);
+        for (let i = 0; i < voiceBins; i++) {
           sum += dataArray[i];
         }
-        targetVolume = sum / dataArray.length / 255; // Escala 0.0 a 1.0
+        targetVolume = (sum / voiceBins / 255) * 2.2; // Multiplicador para destacar el movimiento
+        if (targetVolume > 1) targetVolume = 1;
       }
 
-      // Suavizado de volumen para evitar brincos bruscos
-      currentVolume += (targetVolume - currentVolume) * 0.12;
+      // Transición reactiva y rápida
+      currentVolume += (targetVolume - currentVolume) * 0.22;
 
-      // Movimiento continuo de la onda
-      phase += isListening ? 0.04 : 0.015;
+      // Desplazamiento continuo de fase
+      phase += isListening ? (0.05 + currentVolume * 0.08) : 0.015;
 
-      // Amplitud basada en el volumen del habla
-      const baseAmp = isListening ? (height * 0.42 * currentVolume + 6) : 4;
-      const linesCount = 14;
+      // Amplitud base y activa bien marcadas
+      const baseAmp = isListening ? (height * 0.68 * currentVolume + 8) : 5;
+      const linesCount = 16;
 
-      // Crear degradado lineal de Cyan a Magenta
+      // Degradado Cyan -> Azul -> Magenta
       const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
       gradient.addColorStop(0, '#00f2fe');
       gradient.addColorStop(0.5, '#7c4dff');
@@ -372,25 +375,25 @@
 
       for (let l = 0; l < linesCount; l++) {
         canvasCtx.beginPath();
-        const offset = (l - linesCount / 2) * 2.5;
-        const lineAmp = baseAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.35);
+        const lineOffset = (l - linesCount / 2) * 3;
+        const lineAmp = baseAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.3);
 
         for (let x = 0; x < width; x += 3) {
-          const normX = (x / width) * Math.PI * 4;
-          const y1 = Math.sin(normX + phase + l * 0.06) * lineAmp;
-          const y2 = Math.cos(normX * 0.5 - phase * 0.7) * (lineAmp * 0.4);
+          const normX = (x / width) * Math.PI * 5; // Ondulación más expresiva
+          const y1 = Math.sin(normX + phase + l * 0.08) * lineAmp;
+          const y2 = Math.cos(normX * 0.6 - phase * 1.2) * (lineAmp * 0.5);
           
-          // Atenuación sutil en las esquinas para dar forma ovalada/cinta
+          // Mantiene los extremos dentro del marco visual
           const edgeFade = Math.sin((x / width) * Math.PI);
-          const y = centerY + (y1 + y2 + offset) * edgeFade;
+          const y = centerY + (y1 + y2 + lineOffset) * edgeFade;
 
           if (x === 0) canvasCtx.moveTo(x, y);
           else canvasCtx.lineTo(x, y);
         }
 
         canvasCtx.strokeStyle = gradient;
-        canvasCtx.lineWidth = 1.8;
-        canvasCtx.globalAlpha = 0.85 - (Math.abs(l - linesCount / 2) / linesCount) * 0.5;
+        canvasCtx.lineWidth = 2.0;
+        canvasCtx.globalAlpha = 0.9 - (Math.abs(l - linesCount / 2) / linesCount) * 0.55;
         canvasCtx.stroke();
       }
       canvasCtx.globalAlpha = 1.0;
@@ -448,11 +451,11 @@
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         microphoneStream = stream;
 
-        // Captura de volumen suave para el gráfico
+        // Sensibilidad optimizada para el gráfico
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-        analyser.smoothingTimeConstant = 0.85; 
+        analyser.fftSize = 128;
+        analyser.smoothingTimeConstant = 0.7; 
         const source = audioCtx.createMediaStreamSource(stream);
         source.connect(analyser);
         dataArray = new Uint8Array(analyser.frequencyBinCount);
