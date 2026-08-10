@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dictado Inteligente IA - Dra. Luisa Montilla | Innova Med</title>
+  <style>
+    :root {
+      --bg-dark: #080f1e;
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --accent-cyan: #00f2fe;
+      --accent-magenta: #e040fb;
+      --accent-blue: #4facfe;
+      --accent-red: #ff4b5c;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-glow: rgba(0, 242, 254, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 20%, #112240 0%, #080f1e 80%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 10px;
+    }
+
+    .main-container {
+      width: 100%;
+      max-width: 850px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6),
+                  0 0 30px rgba(0, 242, 254, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header distribuido */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      padding-bottom: 15px;
+    }
+
+    .doctor-info h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .doctor-info p {
+      font-size: 13px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .brand-logo img {
+      height: 65px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.3));
+    }
+
+    /* Visualizador de Audio (Canvas de Ondas Fluidas) */
+    .visualizer-container {
+      width: 100%;
+      height: 150px;
+      background: rgba(4, 9, 20, 0.85);
+      border-radius: 12px;
+      border: 1px solid rgba(224, 64, 251, 0.25);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Barra de Estado */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      padding: 0 5px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #64748b;
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.active {
+      background-color: #10b981;
+      box-shadow: 0 0 12px #10b981;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Botones de Control */
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #start-btn {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(224, 64, 251, 0.3);
+    }
+
+    #start-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 0 25px rgba(224, 64, 251, 0.6);
+    }
+
+    #stop-btn {
+      background: rgba(255, 75, 92, 0.15);
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+    }
+
+    #stop-btn:hover:not(:disabled) {
+      background: var(--accent-red);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(255, 75, 92, 0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Caja de Transcripción */
+    textarea {
+      width: 100%;
+      height: 240px;
+      padding: 18px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.9);
+      resize: vertical;
+      line-height: 1.6;
+      transition: border-color 0.3s ease;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
+    }
+
+    /* Botón Guardar */
+    #save-btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 14px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    #save-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.5);
+    }
+
+    .footer-credits {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    @media (max-width: 600px) {
+      .header {
+        flex-direction: column-reverse;
+        text-align: center;
+        gap: 12px;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="main-container">
+    <div class="header">
+      <div class="doctor-info">
+        <h1>DRA. LUISA MONTILLA</h1>
+        <p>Dermatología UCV • Caracas</p>
+      </div>
+      <div class="brand-logo">
+        <img src="https://lh3.googleusercontent.com/d/1Tlf8Sn2I2glfRitRd3sbaMan3A1WVaAU" alt="Innova Med Logo">
+      </div>
+    </div>
+
+    <!-- Visualizador de Ondas de Cinta Fluidas -->
+    <div class="visualizer-container">
+      <canvas id="waveform"></canvas>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-badge">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status">Estado: Detenido</span>
+      </div>
+      <span>Dictado Inteligente IA</span>
+    </div>
+
+    <div class="controls">
+      <button id="start-btn" class="btn" onclick="startDictation()">🎙️ Iniciar Escucha</button>
+      <button id="stop-btn" class="btn" onclick="stopDictation()" disabled>⏹ Pausar</button>
+    </div>
+
+    <textarea id="transcript-box" placeholder="El texto dictado por la doctora aparecerá en esta sección de forma continua..."></textarea>
+
+    <button id="save-btn" onclick="sendToAppSheet()">💾 Guardar Resumen en AppSheet</button>
+
+    <div class="footer-credits">Innova Med Platform • Sistema de Asistencia Clínica Avanzada</div>
+  </div>
+
+  <script>
+    // ==========================================
+    // CONFIGURACIÓN DE AUDIO Y ANIMACIÓN CANVAS
+    // ==========================================
+    const canvas = document.getElementById('waveform');
+    const canvasCtx = canvas.getContext('2d');
+    let phase = 0;
+
+    function initCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', initCanvas);
+    initCanvas();
+
+    function drawWaveform() {
+      requestAnimationFrame(drawWaveform);
+
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerY = height / 2;
+
+      canvasCtx.clearRect(0, 0, width, height);
+
+      // Amplitud suave en reposo y mayor en dictado (Animación Fluida Independiente)
+      const targetAmp = isListening ? height * 0.35 : 6;
+      phase += isListening ? 0.04 : 0.015;
+
+      const linesCount = 26;
+
+      for (let l = 0; l < linesCount; l++) {
+        canvasCtx.beginPath();
+        const offset = (l - linesCount / 2) * 1.8;
+        const lineAmp = targetAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.25);
+
+        for (let x = 0; x < width; x += 3) {
+          const normX = (x / width) * Math.PI * 4;
+          const y1 = Math.sin(normX + phase + l * 0.04) * lineAmp;
+          const y2 = Math.cos(normX * 0.5 - phase * 0.8) * (lineAmp * 0.5);
+          
+          const edgeFade = Math.sin((x / width) * Math.PI);
+          const y = centerY + (y1 + y2 + offset) * edgeFade;
+
+          if (x === 0) {
+            canvasCtx.moveTo(x, y);
+          } else {
+            canvasCtx.lineTo(x, y);
+          }
+        }
+
+        // Degradado Magenta -> Púrpura -> Cian
+        const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
+        gradient.addColorStop(0, '#e040fb');
+        gradient.addColorStop(0.5, '#7c4dff');
+        gradient.addColorStop(1, '#00f2fe');
+
+        canvasCtx.strokeStyle = gradient;
+        canvasCtx.lineWidth = 1.5;
+        canvasCtx.globalAlpha = 0.85 - (Math.abs(l - linesCount / 2) / linesCount) * 0.5;
+        canvasCtx.stroke();
+      }
+
+      canvasCtx.globalAlpha = 1.0;
+    }
+    drawWaveform();
+
+    // ==========================================
+    // RECONOCIMIENTO DE VOZ (CÓDIGO EXACTO ORIGINAL)
+    // ==========================================
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    let isListening = false;
+    let finalTranscript = '';
+
+    const statusDot = document.getElementById('status-dot');
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'es-ES';
+
+      // MANEJO DE RESULTADOS (Evita duplicaciones en Android)
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' ';
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        document.getElementById('transcript-box').value = finalTranscript + interimTranscript;
+      };
+
+      recognition.onspeechend = () => {
+        if (isListening) {
+          try {
+            recognition.start();
+          } catch (e) {}
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Error en reconocimiento de voz:", event.error);
+        document.getElementById('status').innerText = "Error: " + event.error;
+        if (statusDot) statusDot.classList.remove('active');
+      };
+
+      recognition.onend = () => {
+        // Si el usuario no lo pausó manualmente, se reinicia automáticamente para mantener dictado continuo
+        if (isListening) {
+          try {
+            recognition.start();
+          } catch (e) {}
+        } else {
+          document.getElementById('status').innerText = "Estado: Pausado";
+          if (statusDot) statusDot.classList.remove('active');
+          document.getElementById('start-btn').disabled = false;
+          document.getElementById('stop-btn').disabled = true;
+        }
+      };
+
+    } else {
+      alert("Tu navegador no soporta el reconocimiento de voz nativo (Web Speech API).");
+    }
+
+    function startDictation() {
+      if (recognition && !isListening) {
+        // Cargar texto previo si el usuario editó manualmente la casilla
+        finalTranscript = document.getElementById('transcript-box').value;
+        if (finalTranscript && !finalTranscript.endsWith(' ')) {
+          finalTranscript += ' ';
+        }
+        
+        isListening = true;
+        recognition.start();
+        document.getElementById('status').innerText = "Estado: Escuchando...";
+        if (statusDot) statusDot.classList.add('active');
+        document.getElementById('start-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = false;
+      }
+    }
+
+    function stopDictation() {
+      if (recognition && isListening) {
+        isListening = false;
+        recognition.stop();
+        if (statusDot) statusDot.classList.remove('active');
+      }
+    }
+
+    // ==========================================
+    // ENVÍO DE DATOS A APPSHEET
+    // ==========================================
+    async function sendToAppSheet() {
+      const saveBtn = document.getElementById('save-btn');
+      const text = document.getElementById('transcript-box').value;
+
+      if (!text.trim()) {
+        alert("No hay texto dictado para enviar.");
+        return;
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const idPaciente = urlParams.get('idPaciente') || urlParams.get('rowId');
+
+      if (!idPaciente) {
+        alert("Error: No se encontró el ID del paciente en la URL.");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Guardando...";
+
+      const appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
+      const accessKey = 'V2-u0bT6-W34Ia-4wFIv-Oincz-ddxiG-bMLKB-jb3J7-J5WUl';
+      const tableName = 'InformeMedico';
+
+      const nuevoInformeId = "INF-" + Date.now();
+      
+      const hoy = new Date();
+      const dia = String(hoy.getDate()).padStart(2, '0');
+      const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+      const anio = hoy.getFullYear();
+      const fechaHoy = `${dia}/${mes}/${anio}`;
+
+      const payload = {
+        "Action": "Add",
+        "Properties": {
+          "Locale": "es-ES",
+          "Timezone": "UTC"
+        },
+        "Rows": [
+          {
+            "InformeMedID": nuevoInformeId,
+            "IDPaciente": decodeURIComponent(idPaciente).trim(),
+            "Fecha": fechaHoy,
+            "Transcripción": text.trim()
+          }
+        ]
+      };
+
+      const apiUrl = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'ApplicationAccessKey': accessKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const resText = await response.text();
+
+        if (response.ok) {
+          alert("¡Informe guardado con éxito en la tabla InformeMedico!");
+          try { window.close(); } catch(e) {}
+        } else {
+          alert(`Error de AppSheet (${response.status}): ${resText}`);
+        }
+      } catch (error) {
+        alert("Error de conexión: " + error.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "💾 Guardar Resumen en AppSheet";
+      }
+    } 
+  </script>
+</body>
+</html>
