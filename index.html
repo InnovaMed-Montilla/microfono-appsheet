@@ -81,19 +81,22 @@
       filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.3));
     }
 
-    /* Visualizador */
+    /* =========================================
+       NUEVO ESTILO VISUALIZADOR (BARRAS FINAS)
+       ========================================= */
     .visualizer-container {
       width: 100%;
       height: 130px;
-      background: rgba(4, 9, 20, 0.85);
+      background: rgba(4, 9, 20, 0.9); /* Un poco más oscuro para contraste */
       border-radius: 12px;
-      border: 1px solid rgba(224, 64, 251, 0.25);
+      border: 1px solid rgba(224, 64, 251, 0.2);
       position: relative;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
-      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+      /* Sombra interior más sutil y limpia */
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5); 
     }
 
     canvas {
@@ -266,7 +269,7 @@
     <div class="header">
       <div class="doctor-info">
         <h1>DRA. LUISA MONTILLA</h1>
-        <p>Dermatología UCV • Caracas</p>
+        <p>Dermatólogo UCV • Caracas</p>
       </div>
       <div class="brand-logo">
         <img src="https://lh3.googleusercontent.com/d/1Tlf8Sn2I2glfRitRd3sbaMan3A1WVaAU" alt="Innova Med Logo">
@@ -299,7 +302,7 @@
   </div>
 
   <script>
-    // Variables Globales
+    // Variables Globales - NO MODIFICADAS
     let isListening = false;
     let recognition = null;
     let finalTranscript = '';
@@ -311,12 +314,11 @@
     const statusDot = document.getElementById('status-dot');
     const transcriptBox = document.getElementById('transcript-box');
 
-    // ==========================================
-    // 1. INICIALIZACIÓN DE CANVAS Y ONDAS
-    // ==========================================
+    // ============================================================
+    // 1. INICIALIZACIÓN DE CANVAS Y NUEVO RENDERIZADO DE BARRAS
+    // ============================================================
     const canvas = document.getElementById('waveform');
     const canvasCtx = canvas.getContext('2d');
-    let phase = 0;
 
     function resizeCanvas() {
       if (canvas && canvas.parentElement) {
@@ -327,53 +329,95 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
+    // --- NUEVO RENDERIZADO DE BARRAS ESTILO 'FINAS' CON DEGRADADO ---
     function drawWaveform() {
       requestAnimationFrame(drawWaveform);
       const width = canvas.width;
       const height = canvas.height;
       if (!width || !height) return;
 
-      const centerY = height / 2;
       canvasCtx.clearRect(0, 0, width, height);
 
-      const targetAmp = isListening ? height * 0.32 : 5;
-      phase += isListening ? 0.05 : 0.015;
+      // Configuración de las barras finas
+      const barWidth = 3;       // Anchura mínima (finas)
+      const barSpacing = 2;     // Espaciado entre barras
+      const totalBars = Math.floor(width / (barWidth + barSpacing));
+      const centerY = height / 2;
 
-      const linesCount = 20;
+      // Variables dinámicas para simular la amplitud basándose en isListening
+      // Nota: Esto no cambia la funcionalidad de captura de audio, solo la representación visual.
+      // Si integraras un AnalyserNode real, usarías sus datos aquí.
+      const baseAmp = isListening ? height * 0.45 : 3; // Altura base (activo vs inactivo)
+      const randomness = isListening ? 0.3 : 0;      // Nivel de variación aleatoria en activo
 
-      for (let l = 0; l < linesCount; l++) {
-        canvasCtx.beginPath();
-        const offset = (l - linesCount / 2) * 2;
-        const lineAmp = targetAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.3);
+      // Pintar cada barra
+      for (let i = 0; i < totalBars; i++) {
+        const x = i * (barWidth + barSpacing);
+        
+        // Simular variación dinámica simétrica desde el centro para imitar el efecto de voz
+        const distanceFromCenter = Math.abs(i - totalBars / 2) / (totalBars / 2); // 0 (centro) a 1 (bordes)
+        const envelope = 1 - Math.pow(distanceFromCenter, 2); // Crea una forma de 'campana'
 
-        for (let x = 0; x < width; x += 4) {
-          const normX = (x / width) * Math.PI * 4;
-          const y1 = Math.sin(normX + phase + l * 0.05) * lineAmp;
-          const y2 = Math.cos(normX * 0.5 - phase * 0.8) * (lineAmp * 0.4);
-          const edgeFade = Math.sin((x / width) * Math.PI);
-          const y = centerY + (y1 + y2 + offset) * edgeFade;
+        // Calcular altura de la barra: Amplitud base * envolvente de forma * variación aleatoria
+        let dynamicHeight = baseAmp * envelope * (1 + (Math.random() - 0.5) * randomness);
+        
+        // Asegurar una altura mínima visible
+        if (dynamicHeight < 2) dynamicHeight = 2;
 
-          if (x === 0) canvasCtx.moveTo(x, y);
-          else canvasCtx.lineTo(x, y);
-        }
+        // Dibujar la barra de forma simétrica desde el centro vertical
+        const yTop = centerY - dynamicHeight / 2;
+        
+        // --- APLICAR PALETA DE COLORES (DEGRADADO CYAN -> MAGENTA) ---
+        // Calcular el color en base a la posición X de la barra (0 = Cyan, 1 = Magenta)
+        const ratio = i / totalBars;
+        const color = getGradientColor('#00f2fe', '#e040fb', ratio);
+        
+        canvasCtx.fillStyle = color;
+        canvasCtx.globalAlpha = 0.85; // Un poco de transparencia para suavidad
 
-        const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
-        gradient.addColorStop(0, '#e040fb');
-        gradient.addColorStop(0.5, '#7c4dff');
-        gradient.addColorStop(1, '#00f2fe');
-
-        canvasCtx.strokeStyle = gradient;
-        canvasCtx.lineWidth = 1.5;
-        canvasCtx.globalAlpha = 0.8 - (Math.abs(l - linesCount / 2) / linesCount) * 0.5;
-        canvasCtx.stroke();
+        // Renderizado de la barra finas (con bordes ligeramente redondeados para estilo)
+        drawRoundedRect(canvasCtx, x, yTop, barWidth, dynamicHeight, 1.5);
       }
       canvasCtx.globalAlpha = 1.0;
     }
+
+    // Función auxiliar para calcular el degradado de color (interpolación lineal RGB)
+    function getGradientColor(startColor, endColor, ratio) {
+      // Convertir Hex a RGB
+      const ah = parseInt(startColor.replace('#', ''), 16),
+            ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff,
+            bh = parseInt(endColor.replace('#', ''), 16),
+            br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff;
+      
+      // Interpolar
+      const rr = ar + ratio * (br - ar),
+            rg = ag + ratio * (bg - ag),
+            rb = ab + ratio * (bb - ab);
+      
+      // Convertir RGB de vuelta a Hex
+      return '#' + ((1 << 24) + (Math.round(rr) << 16) + (Math.round(rg) << 8) + Math.round(rb)).toString(16).slice(1);
+    }
+
+    // Función auxiliar para dibujar rectángulos redondeados finos
+    function drawRoundedRect(ctx, x, y, width, height, radius) {
+      if (height < radius * 2) radius = height / 2;
+      if (width < radius * 2) radius = width / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Iniciar el renderizado
     drawWaveform();
 
-    // ==========================================
-    // 2. CONFIGURACIÓN DEL RECONOCIMIENTO DE VOZ
-    // ==========================================
+    // ============================================================
+    // 2. CONFIGURACIÓN DEL RECONOCIMIENTO DE VOZ - NO MODIFICADO
+    // ============================================================
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
@@ -414,9 +458,9 @@
       alert("Navegador no compatible con Web Speech API. Usa Google Chrome o Edge.");
     }
 
-    // ==========================================
-    // 3. EVENTOS DE LOS BOTONES
-    // ==========================================
+    // ============================================================
+    // 3. EVENTOS DE LOS BOTONES - NO MODIFICADO (Funcionalidad Preservada)
+    // ============================================================
     startBtn.addEventListener('click', async () => {
       // 1. Solicitar permisos explicitos de micrófono al navegador
       try {
@@ -464,9 +508,9 @@
       stopBtn.disabled = true;
     }
 
-    // ==========================================
-    // 4. GUARDAR EN APPSHEET
-    // ==========================================
+    // ============================================================
+    // 4. GUARDAR EN APPSHEET - NO MODIFICADO (Lógica Preservada)
+    // ============================================================
     saveBtn.addEventListener('click', async () => {
       const text = transcriptBox.value;
 
