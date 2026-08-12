@@ -84,8 +84,8 @@
     /* Visualizador */
     .visualizer-container {
       width: 100%;
-      height: 130px;
-      background: rgba(4, 9, 20, 0.85);
+      height: 150px;
+      background: rgba(4, 9, 20, 0.95);
       border-radius: 12px;
       border: 1px solid rgba(224, 64, 251, 0.25);
       position: relative;
@@ -93,7 +93,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+      box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.8);
     }
 
     canvas {
@@ -266,7 +266,7 @@
     <div class="header">
       <div class="doctor-info">
         <h1>DRA. LUISA MONTILLA</h1>
-        <p>Dermatología UCV • Caracas</p>
+        <p>Dermatólogo UCV • Caracas</p>
       </div>
       <div class="brand-logo">
         <img src="https://lh3.googleusercontent.com/d/1Tlf8Sn2I2glfRitRd3sbaMan3A1WVaAU" alt="Innova Med Logo">
@@ -293,7 +293,7 @@
 
     <textarea id="transcript-box" placeholder="El texto dictado por la doctora aparecerá en esta sección de forma continua..."></textarea>
 
-    <button id="save-btn">💾 Guardar Resumen en AppSheet</button>
+    <button id="save-btn">💾 Guardar Resumen</button>
 
     <div class="footer-credits">Innova Med Platform • Sistema de Asistencia Clínica Avanzada</div>
   </div>
@@ -304,6 +304,13 @@
     let recognition = null;
     let finalTranscript = '';
 
+    // Variables Audio Web API
+    let audioCtx = null;
+    let analyser = null;
+    let microphoneStream = null;
+    let dataArray = null;
+    let currentVolume = 0;
+
     const startBtn = document.getElementById('start-btn');
     const stopBtn = document.getElementById('stop-btn');
     const saveBtn = document.getElementById('save-btn');
@@ -312,7 +319,7 @@
     const transcriptBox = document.getElementById('transcript-box');
 
     // ==========================================
-    // 1. INICIALIZACIÓN DE CANVAS Y ONDAS
+    // 1. CINTA DINÁMICA CON ALTA SENSIBILIDAD
     // ==========================================
     const canvas = document.getElementById('waveform');
     const canvasCtx = canvas.getContext('2d');
@@ -336,35 +343,57 @@
       const centerY = height / 2;
       canvasCtx.clearRect(0, 0, width, height);
 
-      const targetAmp = isListening ? height * 0.32 : 5;
-      phase += isListening ? 0.05 : 0.015;
+      // Capturar volumen con boost de amplificación
+      let targetVolume = 0;
+      if (isListening && analyser && dataArray) {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        // Enfocar la captura en el rango de frecuencia de la voz humana
+        const voiceBins = Math.floor(dataArray.length * 0.7);
+        for (let i = 0; i < voiceBins; i++) {
+          sum += dataArray[i];
+        }
+        targetVolume = (sum / voiceBins / 255) * 2.2; // Multiplicador para destacar el movimiento
+        if (targetVolume > 1) targetVolume = 1;
+      }
 
-      const linesCount = 20;
+      // Transición reactiva y rápida
+      currentVolume += (targetVolume - currentVolume) * 0.22;
+
+      // Desplazamiento continuo de fase
+      phase += isListening ? (0.05 + currentVolume * 0.08) : 0.015;
+
+      // Amplitud base y activa bien marcadas
+      const baseAmp = isListening ? (height * 0.68 * currentVolume + 8) : 5;
+      const linesCount = 16;
+
+      // Degradado Cyan -> Azul -> Magenta
+      const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
+      gradient.addColorStop(0, '#00f2fe');
+      gradient.addColorStop(0.5, '#7c4dff');
+      gradient.addColorStop(1, '#e040fb');
 
       for (let l = 0; l < linesCount; l++) {
         canvasCtx.beginPath();
-        const offset = (l - linesCount / 2) * 2;
-        const lineAmp = targetAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.3);
+        const lineOffset = (l - linesCount / 2) * 3;
+        const lineAmp = baseAmp * (1 - Math.abs(l - linesCount / 2) / (linesCount / 2) * 0.3);
 
-        for (let x = 0; x < width; x += 4) {
-          const normX = (x / width) * Math.PI * 4;
-          const y1 = Math.sin(normX + phase + l * 0.05) * lineAmp;
-          const y2 = Math.cos(normX * 0.5 - phase * 0.8) * (lineAmp * 0.4);
+        for (let x = 0; x < width; x += 3) {
+          const normX = (x / width) * Math.PI * 5; // Ondulación más expresiva
+          const y1 = Math.sin(normX + phase + l * 0.08) * lineAmp;
+          const y2 = Math.cos(normX * 0.6 - phase * 1.2) * (lineAmp * 0.5);
+          
+          // Mantiene los extremos dentro del marco visual
           const edgeFade = Math.sin((x / width) * Math.PI);
-          const y = centerY + (y1 + y2 + offset) * edgeFade;
+          const y = centerY + (y1 + y2 + lineOffset) * edgeFade;
 
           if (x === 0) canvasCtx.moveTo(x, y);
           else canvasCtx.lineTo(x, y);
         }
 
-        const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
-        gradient.addColorStop(0, '#e040fb');
-        gradient.addColorStop(0.5, '#7c4dff');
-        gradient.addColorStop(1, '#00f2fe');
-
         canvasCtx.strokeStyle = gradient;
-        canvasCtx.lineWidth = 1.5;
-        canvasCtx.globalAlpha = 0.8 - (Math.abs(l - linesCount / 2) / linesCount) * 0.5;
+        canvasCtx.lineWidth = 2.0;
+        canvasCtx.globalAlpha = 0.9 - (Math.abs(l - linesCount / 2) / linesCount) * 0.55;
         canvasCtx.stroke();
       }
       canvasCtx.globalAlpha = 1.0;
@@ -372,7 +401,7 @@
     drawWaveform();
 
     // ==========================================
-    // 2. CONFIGURACIÓN DEL RECONOCIMIENTO DE VOZ
+    // 2. RECONOCIMIENTO DE VOZ - INTACTO
     // ==========================================
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -418,17 +447,24 @@
     // 3. EVENTOS DE LOS BOTONES
     // ==========================================
     startBtn.addEventListener('click', async () => {
-      // 1. Solicitar permisos explicitos de micrófono al navegador
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Liberar el stream inmediatamente para dejar el canal libre a SpeechRecognition
-        stream.getTracks().forEach(track => track.stop());
+        microphoneStream = stream;
+
+        // Sensibilidad optimizada para el gráfico
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+        analyser.smoothingTimeConstant = 0.7; 
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+
       } catch (err) {
         alert("Acceso al micrófono denegado. Habilita los permisos en la barra del navegador.");
         return;
       }
 
-      // 2. Iniciar reconocimiento
       if (recognition && !isListening) {
         finalTranscript = transcriptBox.value;
         if (finalTranscript && !finalTranscript.endsWith(' ')) {
@@ -462,10 +498,19 @@
       statusDot.classList.remove('active');
       startBtn.disabled = false;
       stopBtn.disabled = true;
+
+      if (microphoneStream) {
+        microphoneStream.getTracks().forEach(track => track.stop());
+        microphoneStream = null;
+      }
+      if (audioCtx) {
+        audioCtx.close();
+        audioCtx = null;
+      }
     }
 
     // ==========================================
-    // 4. GUARDAR EN APPSHEET
+    // 4. APPSHEET - INTACTO
     // ==========================================
     saveBtn.addEventListener('click', async () => {
       const text = transcriptBox.value;
