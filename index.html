@@ -319,23 +319,17 @@
       recognition.continuous = true;
       recognition.lang = 'es-ES';
 
-      // ⚠️ CLAVE PARA ANDROID: Desactivar resultados intermedios elimina los bucles y repeticiones.
-      // En iOS/PC se mantiene activo (true) para fluidez en tiempo real.
+      // Desactivar resultados intermedios en Android evita bucles/repeticiones
       recognition.interimResults = !isAndroid;
 
-      // ============================================================
-      // MANEJO EXCLUSIVO Y LIMPIO PARA ANDROID Y OTROS SISTEMAS
-      // ============================================================
       recognition.onresult = function(event) {
         var box = document.getElementById('transcript-box');
 
         if (isAndroid) {
-          // Lógica Android: Capturamos únicamente frases finales completas
           for (var i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
               var newPhrase = event.results[i][0].transcript.trim();
               if (newPhrase.length > 0) {
-                // Añadimos el nuevo texto al que ya está escrito en el textarea sin sobreescribir
                 var currentText = box.value.trim();
                 if (currentText.length > 0) {
                   box.value = currentText + " " + newPhrase;
@@ -346,7 +340,6 @@
             }
           }
         } else {
-          // Lógica PC / iPhone (Tiempo real)
           var finalText = '';
           var interimText = '';
           for (var i = 0; i < event.results.length; ++i) {
@@ -442,8 +435,9 @@
       saveBtn.disabled = true;
       saveBtn.innerText = "Guardando...";
 
-      var appId = 'f34969f7-116c-4d6e-bd99-e8988bf64a10';
-      var accessKey = 'V2-glUCy-fR4MC-pZrWR-eJYyl-2C87z-ZiKdG-w6Kp1-7Ppep';
+      // Credenciales de la segunda aplicación
+      var appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
+      var accessKey = 'V2-u0bT6-W34Ia-4wFIv-Oincz-ddxiG-bMLKB-jb3J7-J5WUl';
       var tableName = 'InformeMedico';
 
       var nuevoInformeId = "INF-" + Date.now();
