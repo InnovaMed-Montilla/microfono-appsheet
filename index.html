@@ -310,6 +310,7 @@
     var recognition = null;
     var isListening = false;
     var restartTimer = null;
+    var baseTranscript = ''; // Acumula el texto grabado previo a cada inicio/reinicio en PC/Windows
 
     // Detectar si el dispositivo es Android
     var isAndroid = /Android/i.test(navigator.userAgent);
@@ -340,16 +341,19 @@
             }
           }
         } else {
-          var finalText = '';
+          // Lógica PC / Windows (Tiempo real preservando el texto acumulado)
+          var sessionFinal = '';
           var interimText = '';
           for (var i = 0; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
-              finalText += event.results[i][0].transcript + ' ';
+              sessionFinal += event.results[i][0].transcript + ' ';
             } else {
               interimText += event.results[i][0].transcript;
             }
           }
-          box.value = (finalText + interimText).replace(/\s+/g, ' ').trimStart();
+          
+          var totalText = baseTranscript + sessionFinal + interimText;
+          box.value = totalText.replace(/\s+/g, ' ').trimStart();
         }
       };
 
@@ -368,6 +372,11 @@
           clearTimeout(restartTimer);
           restartTimer = setTimeout(function() {
             if (isListening && recognition) {
+              // Rescatamos el texto acumulado antes del reinicio automático de la API en PC
+              if (!isAndroid) {
+                var currentBox = document.getElementById('transcript-box').value.trim();
+                baseTranscript = currentBox ? currentBox + " " : "";
+              }
               try { recognition.start(); } catch (e) {}
             }
           }, 300);
@@ -386,6 +395,9 @@
 
     function startDictation() {
       if (recognition && !isListening) {
+        var boxText = document.getElementById('transcript-box').value.trim();
+        baseTranscript = boxText ? boxText + " " : "";
+
         isListening = true;
         try {
           recognition.start();
@@ -435,7 +447,7 @@
       saveBtn.disabled = true;
       saveBtn.innerText = "Guardando...";
 
-      // Credenciales de la segunda aplicación
+      // Credenciales actualizadas de la segunda aplicación
       var appId = 'a3e3698a-46e6-4571-a0bd-0e510a8511f0';
       var accessKey = 'V2-u0bT6-W34Ia-4wFIv-Oincz-ddxiG-bMLKB-jb3J7-J5WUl';
       var tableName = 'InformeMedico';
